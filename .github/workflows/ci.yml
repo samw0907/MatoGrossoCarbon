@@ -27,7 +27,7 @@ jobs:
 
       - name: Lint with flake8
         run: |
-          flake8 src/ scripts/ --max-line-length=100 --exclude=venv/
+          flake8 src/ scripts/
 
       - name: Validate config
         run: |
