@@ -12,6 +12,12 @@ jobs:
   lint-and-test:
     runs-on: ubuntu-latest
 
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION: eu-north-1
+      GEE_SERVICE_ACCOUNT_EMAIL: ${{ secrets.GEE_SERVICE_ACCOUNT_EMAIL }}
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -20,6 +26,10 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+
+      - name: Write GEE key file
+        run: |
+          echo '${{ secrets.GEE_KEY_JSON }}' > config/gee-service-account.json
 
       - name: Install dependencies
         run: |
