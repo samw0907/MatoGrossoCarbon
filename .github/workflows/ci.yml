@@ -1,0 +1,38 @@
+# .github/workflows/ci.yml
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install flake8 pytest pyyaml
+
+      - name: Lint with flake8
+        run: |
+          flake8 src/ scripts/ --max-line-length=100 --exclude=venv/
+
+      - name: Validate config
+        run: |
+          python scripts/validate_config.py
+
+      - name: Run unit tests
+        run: |
+          pytest tests/unit/ -v

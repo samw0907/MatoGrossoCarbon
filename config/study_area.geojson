@@ -1,0 +1,26 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Mato Grosso Arc of Deforestation - Northern Study Area",
+        "state": "Mato Grosso",
+        "country": "Brazil",
+        "epsg": "EPSG:4326"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [-56.0, -13.0],
+            [-54.0, -13.0],
+            [-54.0, -11.0],
+            [-56.0, -11.0],
+            [-56.0, -13.0]
+          ]
+        ]
+      }
+    }
+  ]
+}
