@@ -1,0 +1,61 @@
+# config/pipeline_config.yaml
+
+gee:
+  service_account_email: "carbon-pipeline-sa@mato-grosso-carbon.iam.gserviceaccount.com"
+  key_file: "config/gee-service-account.json"
+  project: "mato-grosso-carbon"
+
+s3:
+  bucket: "sam-carbon-pipeline"
+  region: "eu-north-1"
+
+epochs:
+  - "2020"
+  - "2022"
+  - "2023"
+
+transitions:
+  - "2020-2022"
+  - "2022-2023"
+
+sentinel2:
+  collection: "COPERNICUS/S2_SR_HARMONIZED"
+  composite_start_month: 6
+  composite_end_month: 8
+  scl_mask_classes: [3, 8, 9, 10, 11]
+  bands: ["B2", "B4", "B5", "B8", "B11", "B12"]
+
+gedi:
+  asset: "LARSE/GEDI/GEDI04_B_002"
+  agbd_band: "MU"
+  se_band: "SE"
+
+mapbiomas:
+  asset: "projects/mapbiomas-public/assets/brazil/lulc/collection9/mapbiomas_collection90_integration_v1"
+  forest_classes: [3, 4, 5, 6]
+
+prodes:
+  wfs_url: "https://terrabrasilis.dpi.inpe.br/geoserver/prodes-amazon/ows"
+  layer: "prodes-amazon:yearly_deforestation_biome"
+  state_filter: "MT"
+
+change_detection:
+  dnbr_threshold_initial: -0.10
+  dnbr_threshold_sweep_min: -0.05
+  dnbr_threshold_sweep_max: -0.25
+  min_patch_area_ha: 1.0
+
+carbon:
+  carbon_fraction: 0.47
+  co2e_conversion: 3.6667
+  confidence_interval: 0.90
+
+aoi:
+  bounds: [-56.0, -13.0, -54.0, -11.0]  # [west, south, east, north]
+  epsg_processing: "EPSG:4326"
+  epsg_output: "EPSG:32721"
+
+outputs:
+  cog_compression: "DEFLATE"
+  cog_tile_size: 256
+  figure_dpi: 300

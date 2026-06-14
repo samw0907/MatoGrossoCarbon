@@ -8,3 +8,5 @@ __pycache__/
 *.csv
 
 config/gee-service-account.json
+
+config/.env
