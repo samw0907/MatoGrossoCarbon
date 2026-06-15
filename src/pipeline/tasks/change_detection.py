@@ -2,7 +2,7 @@
 
 import numpy as np
 import rasterio
-from rasterio.features import shapes
+from rasterio.features import shapes, geometry_mask
 from scipy.ndimage import label
 from shapely.geometry import shape
 import geopandas as gpd
@@ -52,14 +52,13 @@ def delineate_patches(
     if num_features == 0:
         return gpd.GeoDataFrame(columns=["patch_id", "area_ha", "geometry"])
 
-    # vectorise patches
     patch_shapes = list(shapes(labelled.astype(np.int32), transform=transform))
     patches = []
     for geom, patch_id in patch_shapes:
         if patch_id == 0:
             continue
         polygon = shape(geom)
-        # area in ha: convert from degrees to metres using approximate factor
+        # approximate area conversion from degrees to hectares
         area_m2 = polygon.area * (111320 ** 2)
         area_ha = area_m2 / 10000
         if area_ha >= min_area_ha:
@@ -103,7 +102,10 @@ def calibrate_threshold(
 
         precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
         recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
-        f1 = (2 * precision * recall / (precision + recall)) if (precision + recall) > 0 else 0.0
+        f1 = (
+            (2 * precision * recall / (precision + recall))
+            if (precision + recall) > 0 else 0.0
+        )
 
         if f1 > best_f1:
             best_f1 = f1
@@ -119,10 +121,86 @@ def run_change_detection(
     config: dict
 ) -> dict:
     """
-    Placeholder task for change detection - reads rasters from S3,
-    runs dNBR, threshold calibration, patch delineation.
-    Implemented fully in Phase 3 once rasters are in S3.
+    Run full change detection for a transition period.
+    Reads Sentinel-2 NBR composites and MapBiomas forest masks from local cache,
+    runs dNBR calculation, threshold calibration against PRODES,
+    applies MapBiomas transition filter, delineates patches.
+    Returns dict with patches GeoDataFrame and detection metadata.
     """
     logger = get_run_logger()
-    logger.info(f"Change detection for transition {transition} - awaiting Phase 3 implementation")
-    return {"transition": transition, "status": "pending"}
+    logger.info(f"Running change detection for transition {transition}")
+
+    epoch_t1 = transition.split("-")[0]
+    epoch_t2 = "-".join(transition.split("-")[1:])
+
+    # derive run_id from s3_raster_prefix: mato-grosso/runs/{run_id}/rasters
+    parts = s3_raster_prefix.split("/")
+    run_id = parts[2] if len(parts) >= 3 else "unknown"
+    local_dir = f"outputs/rasters/{run_id}"
+
+    from src.pipeline.utils.raster_utils import read_band
+
+    composite_t1_path = f"{local_dir}/sentinel2_composite_{epoch_t1}.tif"
+    composite_t2_path = f"{local_dir}/sentinel2_composite_{epoch_t2}.tif"
+    forest_t1_path = f"{local_dir}/mapbiomas_forest_{epoch_t1}.tif"
+    forest_t2_path = f"{local_dir}/mapbiomas_forest_{epoch_t2}.tif"
+
+    # NBR is band 8 in composite band order: B2,B4,B5,B8,B11,B12,NDVI,NBR,NDMI,NDRE,EVI
+    nbr_t1, profile, transform, crs = read_band(composite_t1_path, band=8)
+    nbr_t2, _, _, _ = read_band(composite_t2_path, band=8)
+    forest_t1, _, _, _ = read_band(forest_t1_path, band=1)
+    forest_t2, _, _, _ = read_band(forest_t2_path, band=1)
+
+    # use end epoch year as PRODES validation reference year
+    prodes_year = int(epoch_t2[:4])
+    prodes_path = f"{local_dir}/prodes_{prodes_year}.tif"
+    prodes_mask, _, _, _ = read_band(prodes_path, band=1)
+
+    # calculate dNBR
+    dnbr = calculate_dnbr(nbr_t1, nbr_t2)
+
+    # calibrate threshold against PRODES
+    cd_config = config["change_detection"]
+    optimal_threshold, f1_score = calibrate_threshold(
+        dnbr=dnbr,
+        prodes_mask=prodes_mask,
+        forest_t1=(forest_t1 == 1).astype(np.uint8),
+        sweep_min=cd_config["dnbr_threshold_sweep_min"],
+        sweep_max=cd_config["dnbr_threshold_sweep_max"]
+    )
+    logger.info(f"Optimal dNBR threshold: {optimal_threshold:.3f} (F1: {f1_score:.3f})")
+
+    # apply threshold
+    deforestation = apply_threshold(dnbr, threshold=abs(optimal_threshold))
+
+    # apply forest baseline mask
+    deforestation = apply_forest_mask(
+        deforestation,
+        (forest_t1 == 1).astype(np.uint8)
+    )
+
+    # apply MapBiomas transition filter
+    deforestation = apply_mapbiomas_filter(
+        deforestation,
+        (forest_t1 == 1).astype(np.uint8),
+        (forest_t2 == 1).astype(np.uint8)
+    )
+
+    # delineate patches
+    patch_gdf = delineate_patches(
+        deforestation_mask=deforestation,
+        transform=transform,
+        crs=crs,
+        min_area_ha=cd_config["min_patch_area_ha"]
+    )
+
+    logger.info(f"Transition {transition}: {len(patch_gdf)} patches detected")
+
+    return {
+        "transition": transition,
+        "patches": patch_gdf,
+        "dnbr_threshold": optimal_threshold,
+        "f1_score": f1_score,
+        "patch_count": len(patch_gdf),
+        "status": "completed"
+    }
