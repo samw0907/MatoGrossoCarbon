@@ -2,10 +2,8 @@
 
 import numpy as np
 import rasterio
-from rasterio.transform import from_bounds
 from rasterio.warp import calculate_default_transform, reproject, Resampling
 from rasterio.crs import CRS
-import io
 
 
 def write_cog(

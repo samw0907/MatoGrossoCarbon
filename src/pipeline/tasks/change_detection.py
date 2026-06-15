@@ -1,8 +1,7 @@
 # src/pipeline/tasks/change_detection.py
 
 import numpy as np
-import rasterio
-from rasterio.features import shapes, geometry_mask
+from rasterio.features import shapes
 from scipy.ndimage import label
 from shapely.geometry import shape
 import geopandas as gpd

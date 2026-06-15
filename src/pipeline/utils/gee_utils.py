@@ -2,7 +2,6 @@
 
 import ee
 import json
-from pathlib import Path
 
 
 def initialise_gee(service_account_email: str, key_file: str, project: str):

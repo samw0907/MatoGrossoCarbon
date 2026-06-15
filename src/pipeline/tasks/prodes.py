@@ -1,11 +1,12 @@
 # src/pipeline/tasks/prodes.py
 
+# src/pipeline/tasks/prodes.py
+
 import numpy as np
 import requests
 import geopandas as gpd
 import rasterio
 from rasterio.features import rasterize
-from rasterio.transform import from_bounds
 from shapely.geometry import box
 from prefect import task, get_run_logger
 

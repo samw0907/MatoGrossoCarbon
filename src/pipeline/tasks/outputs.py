@@ -1,7 +1,6 @@
 # src/pipeline/tasks/outputs.py
 
 import json
-import boto3
 import geopandas as gpd
 from datetime import datetime
 from prefect import task, get_run_logger

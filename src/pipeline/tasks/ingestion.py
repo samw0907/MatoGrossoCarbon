@@ -4,7 +4,7 @@ import ee
 import time
 from prefect import task, get_run_logger
 
-from src.pipeline.utils.gee_utils import get_aoi_geometry, mask_s2_scl
+from src.pipeline.utils.gee_utils import mask_s2_scl
 from src.pipeline.utils.gcs_utils import copy_gcs_to_s3
 
 
@@ -106,7 +106,7 @@ def export_gedi_to_gcs(aoi: ee.Geometry, run_id: str, config: dict) -> str:
     filename = "gedi_l4b_agbd"
     gcs_path = f"runs/{run_id}/{filename}"
 
-    logger.info(f"Loading GEDI L4B v2.1 and exporting to GCS")
+    logger.info("Loading GEDI L4B v2.1 and exporting to GCS")
     gedi = ee.Image(gedi_config["asset"]).select(
         [gedi_config["agbd_band"], gedi_config["se_band"]]
     ).clip(aoi)

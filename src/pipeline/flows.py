@@ -1,9 +1,6 @@
 # src/pipeline/flows.py
 
 import os
-import yaml
-from datetime import datetime
-import ee
 from prefect import flow, get_run_logger
 
 from src.pipeline.utils.gee_utils import initialise_gee, get_aoi_geometry
@@ -55,10 +52,7 @@ def ingestion_flow(
 
 
 @flow(name="carbon-flow", log_prints=True)
-def carbon_flow(
-    run_id: str,
-    config: dict
-):
+def carbon_flow(run_id: str, config: dict):
     """
     Carbon flow: downloads rasters from S3, runs change detection,
     extracts biomass, calculates CO2e, writes outputs.
@@ -71,7 +65,6 @@ def carbon_flow(
     local_raster_dir = f"outputs/rasters/{run_id}"
     os.makedirs(local_raster_dir, exist_ok=True)
 
-    # download rasters from S3 to local cache
     logger.info("Downloading rasters from S3")
     s3_prefix = f"mato-grosso/runs/{run_id}/rasters"
 
@@ -90,9 +83,8 @@ def carbon_flow(
             f"{local_raster_dir}/mapbiomas_forest_{epoch}.tif"
         )
 
-    # fetch and rasterise PRODES validation reference
     reference_raster = f"{local_raster_dir}/sentinel2_composite_2020.tif"
-    prodes_s3_keys = fetch_and_rasterise_prodes(run_id, reference_raster, config)
+    fetch_and_rasterise_prodes(run_id, reference_raster, config)
 
     for year in [2020, 2021, 2022, 2023]:
         download_file(
@@ -101,14 +93,11 @@ def carbon_flow(
             f"{local_raster_dir}/prodes_{year}.tif"
         )
 
-    # run change detection and carbon calculation per transition
     all_summaries = []
     all_s3_keys = []
     task_statuses = {}
 
     for transition in transitions:
-        epoch_t1, epoch_t2 = transition.split("-")[0], transition.split("-")[1]
-
         try:
             result = run_change_detection(
                 transition=transition,

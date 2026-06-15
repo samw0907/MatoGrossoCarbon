@@ -1,6 +1,5 @@
 # src/pipeline/utils/drive_utils.py
 
-import os
 import time
 from pathlib import Path
 from googleapiclient.discovery import build
@@ -51,4 +50,3 @@ def download_drive_file(service, file_id: str, local_path: str):
         done = False
         while not done:
             _, done = downloader.next_chunk()
-            
