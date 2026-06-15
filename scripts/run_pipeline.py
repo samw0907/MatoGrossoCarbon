@@ -12,9 +12,7 @@ def main():
     with open("config/pipeline_config.yaml", "r") as f:
         config = yaml.safe_load(f)
 
-    # add aoi path to config dict for task access
     config["aoi_path"] = "config/study_area.geojson"
-
     run_id = datetime.now().strftime("%Y-%m-%d_%H%M%S")
 
     ingestion_flow(
@@ -26,7 +24,7 @@ def main():
         run_id=run_id
     )
 
-    carbon_flow(transitions=config["transitions"])
+    carbon_flow(run_id=run_id, config=config)
 
 
 if __name__ == "__main__":
