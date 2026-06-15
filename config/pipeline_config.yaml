@@ -5,6 +5,10 @@ gee:
   key_file: "config/gee-service-account.json"
   project: "mato-grosso-carbon"
 
+gcs:
+  bucket: "mato-grosso-carbon-exports"
+  region: "us-central1"
+
 s3:
   bucket: "sam-carbon-pipeline"
   region: "eu-north-1"
@@ -51,7 +55,7 @@ carbon:
   confidence_interval: 0.90
 
 aoi:
-  bounds: [-56.0, -13.0, -54.0, -11.0]  # [west, south, east, north]
+  bounds: [-56.0, -13.0, -54.0, -11.0]
   epsg_processing: "EPSG:4326"
   epsg_output: "EPSG:32721"
 

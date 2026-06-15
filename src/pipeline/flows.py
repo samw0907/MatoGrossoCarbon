@@ -1,35 +1,17 @@
 # src/pipeline/flows.py
 
+from datetime import datetime
 import ee
-from prefect import flow, task, get_run_logger
-from prefect.tasks import task_input_hash
-from datetime import timedelta
+from prefect import flow, get_run_logger
 
-
-@task(retries=2, retry_delay_seconds=30, cache_key_fn=task_input_hash, cache_expiration=timedelta(hours=24))
-def initialise_gee(service_account_email: str, key_file: str, project: str):
-    """Authenticate and initialise the GEE session."""
-    logger = get_run_logger()
-    credentials = ee.ServiceAccountCredentials(email=service_account_email, key_file=key_file)
-    ee.Initialize(credentials, project=project)
-    logger.info(f"GEE initialised for project: {project}")
-    return True
-
-
-@task(retries=2, retry_delay_seconds=30)
-def placeholder_ingestion(epoch: str):
-    """Placeholder for Sentinel-2 ingestion task (Phase 2)."""
-    logger = get_run_logger()
-    logger.info(f"Ingestion task for epoch {epoch} - not yet implemented")
-    return {"epoch": epoch, "status": "placeholder"}
-
-
-@task(retries=2, retry_delay_seconds=30)
-def placeholder_carbon(transition: str):
-    """Placeholder for carbon calculation task (Phase 3)."""
-    logger = get_run_logger()
-    logger.info(f"Carbon task for transition {transition} - not yet implemented")
-    return {"transition": transition, "status": "placeholder"}
+from src.pipeline.utils.gee_utils import initialise_gee, get_aoi_geometry
+from src.pipeline.tasks.ingestion import (
+    build_sentinel2_composite,
+    export_composite_to_gcs,
+    export_gedi_to_gcs,
+    export_mapbiomas_to_gcs,
+    transfer_gcs_to_s3
+)
 
 
 @flow(name="ingestion-flow", log_prints=True)
@@ -37,33 +19,35 @@ def ingestion_flow(
     service_account_email: str,
     key_file: str,
     project: str,
-    epochs: list
+    epochs: list,
+    config: dict,
+    run_id: str
 ):
-    """Ingestion flow: GEE auth, Sentinel-2 composites, GEDI, MapBiomas (Phase 2)."""
+    """Ingestion flow: GEE composites exported to GCS then transferred to S3."""
     logger = get_run_logger()
-    logger.info("Starting ingestion flow")
+    logger.info(f"Starting ingestion flow | run_id: {run_id}")
 
     initialise_gee(service_account_email, key_file, project)
+    aoi = get_aoi_geometry(config["aoi_path"])
 
-    results = []
+    # build and export Sentinel-2 composites sequentially
     for epoch in epochs:
-        result = placeholder_ingestion(epoch)
-        results.append(result)
+        composite = build_sentinel2_composite(epoch, aoi, config)
+        export_composite_to_gcs(composite, aoi, run_id, config)
 
-    logger.info(f"Ingestion flow complete for epochs: {epochs}")
-    return results
+    # export GEDI and MapBiomas
+    export_gedi_to_gcs(aoi, run_id, config)
+    export_mapbiomas_to_gcs(aoi, run_id, config)
+
+    # transfer all GCS outputs to S3 and clean up GCS
+    s3_keys = transfer_gcs_to_s3(run_id, config)
+
+    logger.info(f"Ingestion flow complete | {len(s3_keys)} files in S3")
+    return s3_keys
 
 
 @flow(name="carbon-flow", log_prints=True)
 def carbon_flow(transitions: list):
     """Carbon flow: change detection, biomass extraction, CO2e calculation (Phase 3)."""
     logger = get_run_logger()
-    logger.info("Starting carbon flow")
-
-    results = []
-    for transition in transitions:
-        result = placeholder_carbon(transition)
-        results.append(result)
-
-    logger.info("Carbon flow complete")
-    return results
+    logger.info("Starting carbon flow - Phase 3 implementation pending")
