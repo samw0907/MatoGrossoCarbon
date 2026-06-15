@@ -33,7 +33,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install flake8 pytest pyyaml
+           pip install flake8 pytest pyyaml numpy scipy rasterio geopandas shapely pyproj
 
       - name: Lint with flake8
         run: |
