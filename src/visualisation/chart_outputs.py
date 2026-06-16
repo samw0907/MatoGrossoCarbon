@@ -213,13 +213,13 @@ def chart3_biomass_co2e_scatter(
 ) -> str:
     """
     Chart 3: AGBD vs CO2e scatter plot per patch, coloured by transition.
-    Patches with AGBD below 5 Mg/ha excluded (GEDI data gaps between orbital tracks).
+    Patches with AGBD below 5 Mg/ha excluded (GEDI orbital track gaps).
     Demonstrates GEDI biomass integration and IPCC Tier 1 calculation chain.
     """
     logger.info("Generating Chart 3: Biomass vs CO2e scatter")
 
     transitions = ["2020-2022", "2022-2023"]
-    min_agbd = 5.0  # exclude patches in GEDI orbital track gaps
+    min_agbd = 5.0
 
     fig, ax = plt.subplots(1, 1, figsize=(10, 7))
     _apply_dark_style(fig, ax)
@@ -233,7 +233,6 @@ def chart3_biomass_co2e_scatter(
         if os.path.exists(geojson_path):
             gdf = gpd.read_file(geojson_path)
             if "agbd_mean_mg_ha" in gdf.columns and "co2e_mg" in gdf.columns:
-                # filter out patches with near-zero GEDI coverage
                 gdf_valid = gdf[gdf["agbd_mean_mg_ha"] >= min_agbd].copy()
                 excluded = len(gdf) - len(gdf_valid)
 
@@ -255,7 +254,7 @@ def chart3_biomass_co2e_scatter(
 
     ax.text(0.03, 0.95,
             f"Point size proportional to patch area\n"
-            f"CO2e = AGBD × area × 0.47 × 3.667 (IPCC Tier 1)\n"
+            f"CO2e = AGBD x area x 0.47 x 3.667 (IPCC Tier 1)\n"
             f"Patches with AGBD < {min_agbd} Mg/ha excluded\n"
             f"(GEDI orbital track gaps)",
             transform=ax.transAxes, color=TEXT_COLOR, fontsize=8,
@@ -314,7 +313,8 @@ def chart4_cumulative_co2e(
                     ax.axvline(patch_pct[idx_80], color="#FF5252",
                                linewidth=1, linestyle="--", alpha=0.7)
                     ax.text(patch_pct[idx_80] + 1, 5,
-                            f"{patch_pct[idx_80]:.0f}% of patches\n→ 80% of CO2e",
+                            f"{patch_pct[idx_80]:.0f}% of patches\n"
+                            f"-> 80% of CO2e",
                             color="#FF5252", fontsize=8)
 
                 ax.set_xlim(0, 100)
@@ -338,7 +338,7 @@ def chart4_cumulative_co2e(
 def chart5_index_time_series(run_id: str, output_dir: str) -> str:
     """
     Chart 5: Mean spectral index values across epochs.
-    Labels offset vertically by rank to avoid overlap.
+    Labels manually offset per index per epoch to avoid overlap.
     """
     logger.info("Generating Chart 5: Index time series")
 
@@ -360,6 +360,17 @@ def chart5_index_time_series(run_id: str, output_dir: str) -> str:
         "NDMI": "#FF9800",
         "NDRE": "#9C27B0",
         "EVI": "#F44336"
+    }
+
+    # manual label offsets per index per epoch
+    # positive = above point, negative = below point
+    label_offsets = {
+        2020: {"NDVI": 0.012, "NBR": -0.012, "NDMI": -0.012,
+               "NDRE": -0.012, "EVI": 0.012},
+        2022: {"NDVI": 0.012, "NBR": -0.012, "NDMI": -0.012,
+               "NDRE": 0.012, "EVI": -0.012},
+        2023: {"NDVI": 0.012, "NBR": -0.012, "NDMI": -0.012,
+               "NDRE": 0.012, "EVI": -0.012},
     }
 
     means = {idx: [] for idx in index_bands}
@@ -387,21 +398,14 @@ def chart5_index_time_series(run_id: str, output_dir: str) -> str:
         ax.plot(epoch_nums, values, marker="o", linewidth=2,
                 color=index_colors[idx_name], label=idx_name, markersize=8)
 
-    # place labels with vertical offset based on rank at each epoch to avoid overlap
-    epoch_values = {e: {} for e in epoch_nums}
+    # place labels with manual offsets
     for idx_name, values in means.items():
         for x, y in zip(epoch_nums, values):
             if not np.isnan(y):
-                epoch_values[x][idx_name] = y
-
-    for x, idx_vals in epoch_values.items():
-        sorted_items = sorted(idx_vals.items(), key=lambda kv: kv[1])
-        n = len(sorted_items)
-        for rank, (idx_name, y) in enumerate(sorted_items):
-            offset = (rank - (n - 1) / 2) * 0.018
-            ax.text(x, y + offset, f"{y:.3f}",
-                    ha="center", color=index_colors[idx_name],
-                    fontsize=7, fontweight="bold")
+                offset = label_offsets.get(x, {}).get(idx_name, 0.012)
+                ax.text(x, y + offset, f"{y:.3f}",
+                        ha="center", color=index_colors[idx_name],
+                        fontsize=7, fontweight="bold")
 
     ax.set_xlabel("Year", color=TEXT_COLOR, fontsize=10)
     ax.set_ylabel("Mean Index Value", color=TEXT_COLOR, fontsize=10)
