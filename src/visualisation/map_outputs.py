@@ -1,10 +1,11 @@
 # src/visualisation/map_outputs.py
 
+import matplotlib
+matplotlib.use("Agg")
+
 import os
 import logging
 import numpy as np
-import matplotlib
-matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 from matplotlib.colors import LinearSegmentedColormap
@@ -156,8 +157,9 @@ def figure2_change_detection(run_id: str, output_dir: str) -> str:
 
 def figure3_forest_cover(run_id: str, output_dir: str) -> str:
     """
-    Figure 3: MapBiomas forest cover per epoch - binary forest/non-forest.
-    Industry standard opening figure for REDD+ monitoring reports.
+    Figure 3: MapBiomas forest cover per epoch plus deforestation difference panel.
+    Four panels: 2020, 2022, 2023, and 2020-2023 change highlighted in red
+    with annotation box showing deforestation area and percentage.
     """
     logger.info("Generating Figure 3: Forest cover maps")
     raster_dir = f"outputs/rasters/{run_id}"
@@ -167,15 +169,17 @@ def figure3_forest_cover(run_id: str, output_dir: str) -> str:
         "forest", ["#d4c49a", "#1b5e20"]
     )
 
-    fig, axes = plt.subplots(1, 3, figsize=(18, 7))
+    fig, axes = plt.subplots(1, 4, figsize=(24, 7))
     _apply_dark_style(fig, axes)
     fig.suptitle(
-        "Forest Cover | MapBiomas Collection 10 | Mato Grosso, Brazil",
+        "Forest Cover & Deforestation | MapBiomas Collection 10 | Mato Grosso, Brazil",
         color=TEXT_COLOR, fontsize=13, fontweight="bold", y=1.01
     )
 
-    for ax, epoch in zip(axes, epochs):
+    forest_arrays = {}
+    for ax, epoch in zip(axes[:3], epochs):
         forest = _read_band(f"{raster_dir}/mapbiomas_forest_{epoch}.tif", 1)
+        forest_arrays[epoch] = forest
         extent = _get_extent(f"{raster_dir}/mapbiomas_forest_{epoch}.tif")
         ax.imshow(forest, cmap=forest_cmap, vmin=0, vmax=1,
                   extent=extent, aspect="auto", interpolation="none")
@@ -183,12 +187,53 @@ def figure3_forest_cover(run_id: str, output_dir: str) -> str:
         ax.set_xlabel("Longitude", color=TEXT_COLOR, fontsize=8)
         ax.set_ylabel("Latitude", color=TEXT_COLOR, fontsize=8)
 
+    # fourth panel: 2020-2023 deforestation highlighted in red
+    forest_2020 = forest_arrays["2020"]
+    forest_2023 = forest_arrays["2023"]
+    extent = _get_extent(f"{raster_dir}/mapbiomas_forest_2020.tif")
+
+    # base: 2023 forest cover
+    axes[3].imshow(forest_2023, cmap=forest_cmap, vmin=0, vmax=1,
+                   extent=extent, aspect="auto", interpolation="none")
+
+    # deforestation overlay
+    deforested = ((forest_2020 == 1) & (forest_2023 == 0)).astype(np.float32)
+    h, w = deforested.shape
+    overlay = np.zeros((h, w, 4), dtype=np.float32)
+    overlay[deforested == 1] = [0.9, 0.1, 0.1, 0.9]
+    axes[3].imshow(overlay, extent=extent, aspect="auto", interpolation="none")
+
+    # calculate deforestation stats for annotation
+    pixel_area_ha = abs(
+        (extent[1] - extent[0]) / w * (extent[3] - extent[2]) / h
+    ) * (111320 ** 2) / 10000
+    deforested_ha = int(np.sum(deforested == 1) * pixel_area_ha)
+    forest_2020_ha = int(np.sum(forest_2020 == 1) * pixel_area_ha)
+    deforested_pct = (deforested_ha / forest_2020_ha * 100) if forest_2020_ha > 0 else 0
+
+    axes[3].text(
+        0.03, 0.03,
+        f"Forest loss 2020-2023\n"
+        f"Area: ~{deforested_ha:,} ha\n"
+        f"Of 2020 forest: {deforested_pct:.1f}%",
+        transform=axes[3].transAxes,
+        color=TEXT_COLOR, fontsize=8,
+        verticalalignment="bottom",
+        fontfamily="monospace",
+        bbox=dict(boxstyle="round", facecolor="#1a1a1a", alpha=0.85)
+    )
+
+    axes[3].set_title("2020-2023 Loss", color="#FF5252", fontsize=11, fontweight="bold")
+    axes[3].set_xlabel("Longitude", color=TEXT_COLOR, fontsize=8)
+    axes[3].set_ylabel("Latitude", color=TEXT_COLOR, fontsize=8)
+
     legend_elements = [
         mpatches.Patch(facecolor="#1b5e20", label="Forest"),
         mpatches.Patch(facecolor="#d4c49a", label="Non-forest"),
+        mpatches.Patch(facecolor="#E53935", label="2020-2023 Loss"),
     ]
-    axes[-1].legend(handles=legend_elements, loc="lower right",
-                    facecolor="#1a1a1a", labelcolor=TEXT_COLOR, fontsize=8)
+    axes[3].legend(handles=legend_elements, loc="upper right",
+                   facecolor="#1a1a1a", labelcolor=TEXT_COLOR, fontsize=7)
 
     plt.tight_layout()
     out_path = f"{output_dir}/figure3_forest_cover.png"
@@ -219,16 +264,14 @@ def figure4_carbon_loss(run_id: str, output_dir: str, vectors_local_dir: str) ->
     for ax, transition in zip(axes, transitions):
         t1 = transition.split("-")[0]
 
-        # forest/non-forest binary background
         forest = _read_band(f"{raster_dir}/mapbiomas_forest_{t1}.tif", 1)
         extent = _get_extent(f"{raster_dir}/mapbiomas_forest_{t1}.tif")
-        forest_cmap = LinearSegmentedColormap.from_list(
+        forest_bg_cmap = LinearSegmentedColormap.from_list(
             "forest_bg", ["#2d2d1a", "#1b5e20"]
         )
-        ax.imshow(forest, cmap=forest_cmap, vmin=0, vmax=1,
+        ax.imshow(forest, cmap=forest_bg_cmap, vmin=0, vmax=1,
                   extent=extent, aspect="auto", interpolation="none")
 
-        # deforestation patches coloured by CO2e
         geojson_path = f"{vectors_local_dir}/deforestation_patches_{transition}.geojson"
         if os.path.exists(geojson_path):
             patches_gdf = gpd.read_file(geojson_path)
@@ -247,6 +290,14 @@ def figure4_carbon_loss(run_id: str, output_dir: str, vectors_local_dir: str) ->
                     alpha=0.9,
                     linewidth=0
                 )
+
+                # fix all colorbar text to white
+                for child in ax.get_figure().get_axes():
+                    if child is not ax:
+                        child.yaxis.set_tick_params(color=TEXT_COLOR)
+                        plt.setp(child.yaxis.get_ticklabels(), color=TEXT_COLOR)
+                        child.yaxis.label.set_color(TEXT_COLOR)
+                        child.spines["outline"].set_edgecolor("#333333")
 
         ax.set_title(
             f"CO2e Loss {transition}",
@@ -267,15 +318,13 @@ def figure4_carbon_loss(run_id: str, output_dir: str, vectors_local_dir: str) ->
 def figure5_gedi_biomass(run_id: str, output_dir: str) -> str:
     """
     Figure 5: GEDI L4B aboveground biomass density.
-    Standalone biomass reference surface figure - standard in REDD+ methodology docs.
+    Standalone biomass reference surface - standard in REDD+ methodology docs.
     """
     logger.info("Generating Figure 5: GEDI AGBD biomass density")
     raster_dir = f"outputs/rasters/{run_id}"
 
     agbd = _read_band(f"{raster_dir}/gedi_l4b_agbd.tif", 1)
     extent = _get_extent(f"{raster_dir}/gedi_l4b_agbd.tif")
-
-    # mask zeros and very low values (no data / water)
     agbd[agbd <= 0] = np.nan
 
     fig, ax = plt.subplots(1, 1, figsize=(10, 9))
@@ -298,7 +347,8 @@ def figure5_gedi_biomass(run_id: str, output_dir: str) -> str:
 
     ax.text(
         0.02, 0.02,
-        "Source: NASA GEDI L4B v2.1\nResolution: 1 km | Carbon fraction: 0.47",
+        "Source: NASA GEDI L4B v2.1\nResolution: 1 km | Carbon fraction: 0.47\n"
+        "Note: orbital track pattern is inherent\nto GEDI lidar sampling geometry",
         transform=ax.transAxes, color=TEXT_COLOR, fontsize=7,
         verticalalignment="bottom",
         bbox=dict(boxstyle="round", facecolor="#1a1a1a", alpha=0.8)
@@ -317,7 +367,7 @@ def figure6_validation(run_id: str, output_dir: str) -> str:
     """
     Figure 6: Validation panel - detected deforestation vs PRODES.
     TP/FP/FN spatial comparison with RGB background.
-    Standard accuracy assessment figure in Sentinel-2 + PRODES literature.
+    Standard accuracy assessment in Sentinel-2 + PRODES literature.
     """
     logger.info("Generating Figure 6: Validation panel")
     raster_dir = f"outputs/rasters/{run_id}"
@@ -334,17 +384,15 @@ def figure6_validation(run_id: str, output_dir: str) -> str:
         t1, t2 = transition.split("-")[0], transition.split("-")[1]
         prodes_year = int(t2)
 
-        # RGB background (faint)
+        # faint RGB background
         rgb = _make_rgb(f"{raster_dir}/sentinel2_composite_{t2}.tif")
         ax.imshow(rgb * 0.35, interpolation="bilinear")
 
-        # load masks
         prodes = _read_band(f"{raster_dir}/prodes_{prodes_year}.tif", 1)
         forest_t1 = _read_band(f"{raster_dir}/mapbiomas_forest_{t1}.tif", 1)
         forest_t2 = _read_band(f"{raster_dir}/mapbiomas_forest_{t2}.tif", 1)
         detected = ((forest_t1 == 1) & (forest_t2 == 0)).astype(np.float32)
 
-        # build RGBA overlay
         h, w = prodes.shape
         overlay = np.zeros((h, w, 4), dtype=np.float32)
 
@@ -352,13 +400,12 @@ def figure6_validation(run_id: str, output_dir: str) -> str:
         fp = (detected == 1) & (prodes == 0)
         fn = (detected == 0) & (prodes == 1)
 
-        overlay[tp] = [0.2, 0.9, 0.2, 0.85]   # green: true positive
-        overlay[fp] = [0.9, 0.2, 0.2, 0.75]   # red: false positive
-        overlay[fn] = [1.0, 0.6, 0.0, 0.75]   # orange: false negative
+        overlay[tp] = [0.2, 0.9, 0.2, 0.85]
+        overlay[fp] = [0.9, 0.2, 0.2, 0.75]
+        overlay[fn] = [1.0, 0.6, 0.0, 0.75]
 
         ax.imshow(overlay, interpolation="none")
 
-        # metrics
         tp_n = int(np.sum(tp))
         fp_n = int(np.sum(fp))
         fn_n = int(np.sum(fn))
