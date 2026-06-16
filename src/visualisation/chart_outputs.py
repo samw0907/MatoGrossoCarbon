@@ -8,7 +8,6 @@ import logging
 import json
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.gridspec as gridspec
 import geopandas as gpd
 import rasterio
 
@@ -64,7 +63,7 @@ def chart1_summary_statistics(
 ) -> str:
     """
     Chart 1: Summary statistics panel.
-    Deforested area and total CO2e per transition - core pipeline output chart.
+    Deforested area, total CO2e with 90% CI, and patch count per transition.
     """
     logger.info("Generating Chart 1: Summary statistics")
 
@@ -156,7 +155,6 @@ def chart2_patch_size_distribution(
     """
     Chart 2: Patch size distribution histogram per transition.
     Shows whether deforestation is dominated by large clearings or many small patches.
-    Relevant to VCS minimum mapping unit discussion.
     """
     logger.info("Generating Chart 2: Patch size distribution")
 
@@ -175,8 +173,8 @@ def chart2_patch_size_distribution(
             gdf = gpd.read_file(geojson_path)
             areas = gdf["area_ha"].values
 
-            # log-scale bins for better visualisation of skewed distribution
-            bins = np.logspace(np.log10(max(areas.min(), 0.01)), np.log10(areas.max()), 30)
+            bins = np.logspace(np.log10(max(areas.min(), 0.01)),
+                               np.log10(areas.max()), 30)
             ax.hist(areas, bins=bins, color=TRANSITION_COLORS[transition],
                     alpha=0.85, edgecolor="#444444")
             ax.set_xscale("log")
@@ -193,7 +191,8 @@ def chart2_patch_size_distribution(
             ax.set_ylabel("Number of patches", color=TEXT_COLOR, fontsize=9)
 
             ax.text(0.97, 0.95,
-                    f"n = {len(areas):,}\nMin: {areas.min():.1f} ha\nMax: {areas.max():.0f} ha",
+                    f"n = {len(areas):,}\nMin: {areas.min():.1f} ha\n"
+                    f"Max: {areas.max():.0f} ha",
                     transform=ax.transAxes, color=TEXT_COLOR, fontsize=8,
                     ha="right", va="top",
                     bbox=dict(boxstyle="round", facecolor="#1a1a1a", alpha=0.8))
@@ -214,11 +213,13 @@ def chart3_biomass_co2e_scatter(
 ) -> str:
     """
     Chart 3: AGBD vs CO2e scatter plot per patch, coloured by transition.
+    Patches with AGBD below 5 Mg/ha excluded (GEDI data gaps between orbital tracks).
     Demonstrates GEDI biomass integration and IPCC Tier 1 calculation chain.
     """
     logger.info("Generating Chart 3: Biomass vs CO2e scatter")
 
     transitions = ["2020-2022", "2022-2023"]
+    min_agbd = 5.0  # exclude patches in GEDI orbital track gaps
 
     fig, ax = plt.subplots(1, 1, figsize=(10, 7))
     _apply_dark_style(fig, ax)
@@ -232,13 +233,18 @@ def chart3_biomass_co2e_scatter(
         if os.path.exists(geojson_path):
             gdf = gpd.read_file(geojson_path)
             if "agbd_mean_mg_ha" in gdf.columns and "co2e_mg" in gdf.columns:
+                # filter out patches with near-zero GEDI coverage
+                gdf_valid = gdf[gdf["agbd_mean_mg_ha"] >= min_agbd].copy()
+                excluded = len(gdf) - len(gdf_valid)
+
                 ax.scatter(
-                    gdf["agbd_mean_mg_ha"],
-                    gdf["co2e_mg"] / 1000,
+                    gdf_valid["agbd_mean_mg_ha"],
+                    gdf_valid["co2e_mg"] / 1000,
                     c=TRANSITION_COLORS[transition],
                     alpha=0.5,
-                    s=gdf["area_ha"] * 0.5,
-                    label=f"{transition} (n={len(gdf):,})",
+                    s=gdf_valid["area_ha"] * 0.5,
+                    label=f"{transition} (n={len(gdf_valid):,}, "
+                          f"{excluded} excluded)",
                     edgecolors="none"
                 )
 
@@ -248,8 +254,10 @@ def chart3_biomass_co2e_scatter(
               title="Transition", title_fontsize=8)
 
     ax.text(0.03, 0.95,
-            "Point size proportional to patch area\n"
-            "CO2e = AGBD × area × 0.47 × 3.667 (IPCC Tier 1)",
+            f"Point size proportional to patch area\n"
+            f"CO2e = AGBD × area × 0.47 × 3.667 (IPCC Tier 1)\n"
+            f"Patches with AGBD < {min_agbd} Mg/ha excluded\n"
+            f"(GEDI orbital track gaps)",
             transform=ax.transAxes, color=TEXT_COLOR, fontsize=8,
             va="top",
             bbox=dict(boxstyle="round", facecolor="#1a1a1a", alpha=0.8))
@@ -271,7 +279,6 @@ def chart4_cumulative_co2e(
     """
     Chart 4: Cumulative CO2e curve - patches ranked by size.
     Shows what proportion of total emissions come from largest patches.
-    Useful for carbon project prioritisation.
     """
     logger.info("Generating Chart 4: Cumulative CO2e curve")
 
@@ -290,18 +297,20 @@ def chart4_cumulative_co2e(
             gdf = gpd.read_file(geojson_path)
             if "co2e_mg" in gdf.columns:
                 gdf_sorted = gdf.sort_values("area_ha", ascending=False).reset_index()
-                cumulative_co2e = gdf_sorted["co2e_mg"].cumsum() / gdf_sorted["co2e_mg"].sum() * 100
-                patch_pct = (np.arange(1, len(gdf_sorted) + 1) / len(gdf_sorted)) * 100
+                cumulative_co2e = (gdf_sorted["co2e_mg"].cumsum()
+                                   / gdf_sorted["co2e_mg"].sum() * 100)
+                patch_pct = (np.arange(1, len(gdf_sorted) + 1)
+                             / len(gdf_sorted)) * 100
 
                 ax.plot(patch_pct, cumulative_co2e,
                         color=TRANSITION_COLORS[transition], linewidth=2)
                 ax.fill_between(patch_pct, cumulative_co2e,
                                 alpha=0.15, color=TRANSITION_COLORS[transition])
 
-                # mark 80% of CO2e threshold
                 idx_80 = np.searchsorted(cumulative_co2e, 80)
                 if idx_80 < len(patch_pct):
-                    ax.axhline(80, color="#FF5252", linewidth=1, linestyle="--", alpha=0.7)
+                    ax.axhline(80, color="#FF5252", linewidth=1,
+                               linestyle="--", alpha=0.7)
                     ax.axvline(patch_pct[idx_80], color="#FF5252",
                                linewidth=1, linestyle="--", alpha=0.7)
                     ax.text(patch_pct[idx_80] + 1, 5,
@@ -312,8 +321,10 @@ def chart4_cumulative_co2e(
                 ax.set_ylim(0, 100)
                 ax.set_title(f"Cumulative CO2e {transition}",
                              color=TEXT_COLOR, fontsize=10)
-                ax.set_xlabel("% of patches (largest first)", color=TEXT_COLOR, fontsize=9)
-                ax.set_ylabel("Cumulative % of total CO2e", color=TEXT_COLOR, fontsize=9)
+                ax.set_xlabel("% of patches (largest first)",
+                              color=TEXT_COLOR, fontsize=9)
+                ax.set_ylabel("Cumulative % of total CO2e",
+                              color=TEXT_COLOR, fontsize=9)
 
     plt.tight_layout()
     out_path = f"{output_dir}/chart4_cumulative_co2e.png"
@@ -327,15 +338,14 @@ def chart4_cumulative_co2e(
 def chart5_index_time_series(run_id: str, output_dir: str) -> str:
     """
     Chart 5: Mean spectral index values across epochs.
-    Consistent with Prey Lang portfolio project style.
-    Shows vegetation health trajectory 2020-2023.
+    Labels offset vertically by rank to avoid overlap.
     """
     logger.info("Generating Chart 5: Index time series")
 
     raster_dir = f"outputs/rasters/{run_id}"
     epochs = ["2020", "2022", "2023"]
 
-    # band indices in composite: NDVI=7, NBR=8, NDMI=9, NDRE=10, EVI=11
+    # band indices: NDVI=7, NBR=8, NDMI=9, NDRE=10, EVI=11
     index_bands = {
         "NDVI": 7,
         "NBR": 8,
@@ -359,7 +369,9 @@ def chart5_index_time_series(run_id: str, output_dir: str) -> str:
         for idx_name, band_num in index_bands.items():
             data = _read_band(path, band_num)
             valid = data[(data > -1) & (data < 1) & ~np.isnan(data)]
-            means[idx_name].append(float(np.mean(valid)) if len(valid) > 0 else np.nan)
+            means[idx_name].append(
+                float(np.mean(valid)) if len(valid) > 0 else np.nan
+            )
 
     fig, ax = plt.subplots(1, 1, figsize=(10, 7))
     _apply_dark_style(fig, ax)
@@ -369,13 +381,27 @@ def chart5_index_time_series(run_id: str, output_dir: str) -> str:
     )
 
     epoch_nums = [int(e) for e in epochs]
+
+    # plot lines
     for idx_name, values in means.items():
         ax.plot(epoch_nums, values, marker="o", linewidth=2,
                 color=index_colors[idx_name], label=idx_name, markersize=8)
+
+    # place labels with vertical offset based on rank at each epoch to avoid overlap
+    epoch_values = {e: {} for e in epoch_nums}
+    for idx_name, values in means.items():
         for x, y in zip(epoch_nums, values):
             if not np.isnan(y):
-                ax.text(x, y + 0.005, f"{y:.3f}",
-                        ha="center", color=index_colors[idx_name], fontsize=7)
+                epoch_values[x][idx_name] = y
+
+    for x, idx_vals in epoch_values.items():
+        sorted_items = sorted(idx_vals.items(), key=lambda kv: kv[1])
+        n = len(sorted_items)
+        for rank, (idx_name, y) in enumerate(sorted_items):
+            offset = (rank - (n - 1) / 2) * 0.018
+            ax.text(x, y + offset, f"{y:.3f}",
+                    ha="center", color=index_colors[idx_name],
+                    fontsize=7, fontweight="bold")
 
     ax.set_xlabel("Year", color=TEXT_COLOR, fontsize=10)
     ax.set_ylabel("Mean Index Value", color=TEXT_COLOR, fontsize=10)
@@ -405,7 +431,8 @@ def generate_all_charts(
     paths = []
     paths.append(chart1_summary_statistics(run_id, output_dir,
                                            vectors_local_dir, reports_local_dir))
-    paths.append(chart2_patch_size_distribution(run_id, output_dir, vectors_local_dir))
+    paths.append(chart2_patch_size_distribution(run_id, output_dir,
+                                                vectors_local_dir))
     paths.append(chart3_biomass_co2e_scatter(run_id, output_dir, vectors_local_dir))
     paths.append(chart4_cumulative_co2e(run_id, output_dir, vectors_local_dir))
     paths.append(chart5_index_time_series(run_id, output_dir))
