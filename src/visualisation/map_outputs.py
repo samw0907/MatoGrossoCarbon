@@ -192,18 +192,16 @@ def figure3_forest_cover(run_id: str, output_dir: str) -> str:
     forest_2023 = forest_arrays["2023"]
     extent = _get_extent(f"{raster_dir}/mapbiomas_forest_2020.tif")
 
-    # base: 2023 forest cover
     axes[3].imshow(forest_2023, cmap=forest_cmap, vmin=0, vmax=1,
                    extent=extent, aspect="auto", interpolation="none")
 
-    # deforestation overlay
     deforested = ((forest_2020 == 1) & (forest_2023 == 0)).astype(np.float32)
     h, w = deforested.shape
     overlay = np.zeros((h, w, 4), dtype=np.float32)
     overlay[deforested == 1] = [0.9, 0.1, 0.1, 0.9]
     axes[3].imshow(overlay, extent=extent, aspect="auto", interpolation="none")
 
-    # calculate deforestation stats for annotation
+    # annotation box with deforestation stats
     pixel_area_ha = abs(
         (extent[1] - extent[0]) / w * (extent[3] - extent[2]) / h
     ) * (111320 ** 2) / 10000
@@ -291,13 +289,12 @@ def figure4_carbon_loss(run_id: str, output_dir: str, vectors_local_dir: str) ->
                     linewidth=0
                 )
 
-                # fix all colorbar text to white
+                # fix colorbar text to white
                 for child in ax.get_figure().get_axes():
                     if child is not ax:
                         child.yaxis.set_tick_params(color=TEXT_COLOR)
                         plt.setp(child.yaxis.get_ticklabels(), color=TEXT_COLOR)
                         child.yaxis.label.set_color(TEXT_COLOR)
-                        child.spines["outline"].set_edgecolor("#333333")
 
         ax.set_title(
             f"CO2e Loss {transition}",
@@ -384,7 +381,6 @@ def figure6_validation(run_id: str, output_dir: str) -> str:
         t1, t2 = transition.split("-")[0], transition.split("-")[1]
         prodes_year = int(t2)
 
-        # faint RGB background
         rgb = _make_rgb(f"{raster_dir}/sentinel2_composite_{t2}.tif")
         ax.imshow(rgb * 0.35, interpolation="bilinear")
 
