@@ -7,8 +7,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
-from matplotlib.colors import LinearSegmentedColormap, Normalize
-import matplotlib.cm as cm
+from matplotlib.colors import LinearSegmentedColormap
 import rasterio
 import geopandas as gpd
 
