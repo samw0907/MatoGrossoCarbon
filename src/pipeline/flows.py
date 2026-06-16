@@ -22,6 +22,14 @@ from src.pipeline.tasks.outputs import (
 from src.pipeline.tasks.prodes import fetch_and_rasterise_prodes
 
 
+def _download_if_missing(bucket: str, s3_key: str, local_path: str, logger):
+    """Download from S3 only if file not already in local cache."""
+    if os.path.exists(local_path):
+        logger.info(f"Using cached: {local_path}")
+    else:
+        download_file(bucket, s3_key, local_path)
+
+
 @flow(name="ingestion-flow", log_prints=True)
 def ingestion_flow(
     service_account_email: str,
@@ -65,33 +73,25 @@ def carbon_flow(run_id: str, config: dict):
     local_raster_dir = f"outputs/rasters/{run_id}"
     os.makedirs(local_raster_dir, exist_ok=True)
 
-    logger.info("Downloading rasters from S3")
+    # download rasters from S3, skip if already cached locally
+    logger.info("Checking local raster cache")
     s3_prefix = f"mato-grosso/runs/{run_id}/rasters"
 
     gedi_local = f"{local_raster_dir}/gedi_l4b_agbd.tif"
-    download_file(bucket, f"{s3_prefix}/gedi_l4b_agbd.tif", gedi_local)
+    _download_if_missing(bucket, f"{s3_prefix}/gedi_l4b_agbd.tif", gedi_local, logger)
 
     for epoch in config["epochs"]:
-        download_file(
-            bucket,
-            f"{s3_prefix}/sentinel2_composite_{epoch}.tif",
-            f"{local_raster_dir}/sentinel2_composite_{epoch}.tif"
-        )
-        download_file(
-            bucket,
-            f"{s3_prefix}/mapbiomas_forest_{epoch}.tif",
-            f"{local_raster_dir}/mapbiomas_forest_{epoch}.tif"
-        )
+        s2_local = f"{local_raster_dir}/sentinel2_composite_{epoch}.tif"
+        mb_local = f"{local_raster_dir}/mapbiomas_forest_{epoch}.tif"
+        _download_if_missing(bucket, f"{s3_prefix}/sentinel2_composite_{epoch}.tif", s2_local, logger)
+        _download_if_missing(bucket, f"{s3_prefix}/mapbiomas_forest_{epoch}.tif", mb_local, logger)
 
     reference_raster = f"{local_raster_dir}/sentinel2_composite_2020.tif"
     fetch_and_rasterise_prodes(run_id, reference_raster, config)
 
     for year in [2020, 2021, 2022, 2023]:
-        download_file(
-            bucket,
-            f"{s3_prefix}/prodes_{year}.tif",
-            f"{local_raster_dir}/prodes_{year}.tif"
-        )
+        prodes_local = f"{local_raster_dir}/prodes_{year}.tif"
+        _download_if_missing(bucket, f"{s3_prefix}/prodes_{year}.tif", prodes_local, logger)
 
     all_summaries = []
     all_s3_keys = []

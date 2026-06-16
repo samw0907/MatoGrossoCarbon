@@ -1,9 +1,7 @@
 # src/pipeline/tasks/prodes.py
 
 import io
-import zipfile
 import numpy as np
-import requests
 import geopandas as gpd
 import rasterio
 from rasterio.features import rasterize
@@ -12,49 +10,33 @@ from prefect import task, get_run_logger
 
 from src.pipeline.utils.s3_utils import upload_bytes
 
-
-PRODES_DOWNLOAD_URL = (
-    "https://terrabrasilis.dpi.inpe.br/download/dataset/amazon-prodes/"
-    "vector/yearly_deforestation_biome.zip"
+PRODES_SHP_PATH = (
+    "raw_data/prodes/yearly_deforestation_biome_amazonia_v20260608/"
+    "yearly_deforestation_biome_amazonia_v20260608.shp"
 )
 
 
-def fetch_prodes_polygons(
+def load_prodes_polygons(
     bbox: tuple,
     state_filter: str,
     year_start: int,
     year_end: int
 ) -> gpd.GeoDataFrame:
     """
-    Download PRODES annual deforestation shapefile from TerraBrasilis.
-    Filters to state and year range. bbox: (minx, miny, maxx, maxy) EPSG:4326.
+    Load PRODES annual deforestation polygons from local shapefile.
+    Filters to state, year range, and AOI bbox.
+    bbox: (minx, miny, maxx, maxy) in EPSG:4326.
     """
-    response = requests.get(PRODES_DOWNLOAD_URL, timeout=300, stream=True)
-    response.raise_for_status()
-
-    zip_bytes = io.BytesIO(response.content)
-    with zipfile.ZipFile(zip_bytes) as zf:
-        shp_files = [f for f in zf.namelist() if f.endswith(".shp")]
-        if not shp_files:
-            raise ValueError("No shapefile found in PRODES zip download")
-
-        with zf.open(shp_files[0]) as shp:
-            gdf = gpd.read_file(shp)
-
-    if gdf.empty:
-        return gdf
-
-    gdf = gdf.set_crs("EPSG:4326", allow_override=True)
+    gdf = gpd.read_file(PRODES_SHP_PATH)
 
     # filter by state
-    if "state" in gdf.columns:
-        gdf = gdf[gdf["state"] == state_filter]
-    elif "uf" in gdf.columns:
-        gdf = gdf[gdf["uf"] == state_filter]
+    gdf = gdf[gdf["state"] == state_filter]
 
-    # filter by year
-    if "year" in gdf.columns:
-        gdf = gdf[(gdf["year"] >= year_start) & (gdf["year"] <= year_end)]
+    # filter by year range
+    gdf = gdf[(gdf["year"] >= year_start) & (gdf["year"] <= year_end)]
+
+    # reproject to EPSG:4326 for consistency with raster grid
+    gdf = gdf.to_crs("EPSG:4326")
 
     # clip to AOI bbox
     aoi_box = box(*bbox)
@@ -99,7 +81,8 @@ def fetch_and_rasterise_prodes(
     config: dict
 ) -> dict:
     """
-    Download PRODES polygons, rasterise per year, upload to S3.
+    Load PRODES polygons from local shapefile, rasterise per year,
+    upload to S3 as validation reference layers.
     Returns dict of S3 keys per year.
     """
     logger = get_run_logger()
@@ -107,20 +90,18 @@ def fetch_and_rasterise_prodes(
     aoi_bounds = config["aoi"]["bounds"]
     bucket = config["s3"]["bucket"]
 
-    logger.info("Downloading PRODES shapefile from TerraBrasilis")
+    logger.info("Loading PRODES polygons from local shapefile")
 
     try:
-        prodes_gdf = fetch_prodes_polygons(
+        prodes_gdf = load_prodes_polygons(
             bbox=tuple(aoi_bounds),
             state_filter=prodes_config["state_filter"],
             year_start=2020,
             year_end=2023
         )
-        logger.info(f"PRODES polygons downloaded: {len(prodes_gdf)} features")
+        logger.info(f"PRODES polygons loaded: {len(prodes_gdf)} features")
     except Exception as e:
-        # if PRODES download fails, log warning and use empty masks
-        # pipeline continues - PRODES used for validation only, not core methodology
-        logger.warning(f"PRODES download failed: {e} - using empty validation masks")
+        logger.warning(f"PRODES load failed: {e} - using empty validation masks")
         prodes_gdf = gpd.GeoDataFrame()
 
     with rasterio.open(reference_raster_path) as ref:

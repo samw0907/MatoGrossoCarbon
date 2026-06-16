@@ -10,3 +10,5 @@ __pycache__/
 config/gee-service-account.json
 
 config/.env
+
+raw_data/
