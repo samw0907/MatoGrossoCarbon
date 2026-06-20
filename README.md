@@ -11,7 +11,7 @@ Mato Grosso is a state in the southern Brazilian Amazon and sits at the centre o
 
 The study area covers approximately 500,000 ha in northern Mato Grosso, roughly the Alta Floresta / Peixoto de Azevedo region. This area was selected because all three primary datasets used in the analysis (Sentinel-2, GEDI L4B, MapBiomas) have excellent coverage here, and results are directly comparable to published REDD+ project outputs from the same region.
 
-![Figure 1 - RGB Composites](outputs/figures/figure1_composites.png)
+![Figure 1 - RGB Composites](figures/figure1_composites.png)
 *Figure 1: Sentinel-2 true colour composites across the three epochs. Dark areas are remaining forest. The pale geometric shapes are agricultural fields, cleared for soy and cattle. The landscape is already heavily fragmented by 2020, with further incremental loss visible across the period.*
 
 ---
@@ -180,38 +180,38 @@ The cumulative CO2e finding is particularly relevant for carbon project prioriti
 
 ## Figures
 
-![Figure 2 - dNBR Change Detection](outputs/figures/figure2_change_detection.png)
+![Figure 2 - dNBR Change Detection](figures/figure2_change_detection.png)
 *Figure 2: dNBR change detection maps for both transitions. Red areas show vegetation loss (positive dNBR), blue areas show vegetation gain or recovery. The geometric red patches correspond to agricultural field clearings. The 2020-2022 panel shows more extensive loss than 2022-2023, consistent with the declining deforestation trend.*
 
-![Figure 3 - Forest Cover](outputs/figures/figure3_forest_cover.png)
+![Figure 3 - Forest Cover](figures/figure3_forest_cover.png)
 *Figure 3: MapBiomas binary forest cover for each epoch, plus a fourth panel showing 2020-2023 forest loss highlighted in red. The annotation box confirms approximately 124,000 ha lost, representing 4.5% of the 2020 forest baseline. The loss is spatially dispersed across the study area rather than concentrated in a single front, consistent with fragmentation-stage deforestation.*
 
-![Figure 4 - Carbon Loss](outputs/figures/figure4_carbon_loss.png)
+![Figure 4 - Carbon Loss](figures/figure4_carbon_loss.png)
 *Figure 4: Deforestation patches coloured by CO2e loss magnitude, on a forest/non-forest background. Yellow patches represent lower CO2e loss, dark red the highest. Larger patches in higher-biomass areas produce the most significant carbon loss. This is the standard spatial presentation used in VCS project monitoring documents.*
 
-![Figure 5 - GEDI Biomass](outputs/figures/figure5_gedi_biomass.png)
+![Figure 5 - GEDI Biomass](figures/figure5_gedi_biomass.png)
 *Figure 5: GEDI L4B v2.1 aboveground biomass density across the study area. Brighter green indicates higher biomass. The diagonal track pattern is an inherent characteristic of GEDI's lidar sampling geometry - the instrument fires laser pulses along the ISS orbital track rather than providing continuous wall-to-wall coverage. This is not a data quality issue. The biomass values used in carbon calculations are extracted from this surface.*
 
-![Figure 6 - Validation](outputs/figures/figure6_validation.png)
+![Figure 6 - Validation](figures/figure6_validation.png)
 *Figure 6: Pixel-level comparison of our detected deforestation (MapBiomas transitions) against PRODES. Green = true positive (both systems agree deforestation occurred), red = false positive (we detected it, PRODES does not record it in this window), orange = false negative (PRODES records it, we did not detect it). F1 scores of 0.34-0.34 reflect genuine methodological differences rather than errors - see Validation and Limitations.*
 
 ---
 
 ## Charts
 
-![Chart 1 - Summary Statistics](outputs/figures/chart1_summary_statistics.png)
+![Chart 1 - Summary Statistics](figures/chart1_summary_statistics.png)
 *Chart 1: Core pipeline output summary. Deforested area and CO2e loss with 90% confidence intervals, and total patch count, per transition. The error bars reflect uncertainty propagated from GEDI L4B standard error across all patches.*
 
-![Chart 2 - Patch Size Distribution](outputs/figures/chart2_patch_size_distribution.png)
+![Chart 2 - Patch Size Distribution](figures/chart2_patch_size_distribution.png)
 *Chart 2: Distribution of deforestation patch sizes on a log scale. The distribution is heavily right-skewed: the large majority of patches are small (median 3.1-3.4 ha, just above the 1 ha minimum mapping unit), while a small number of large clearings extend to 695-1801 ha. This fragmentation pattern is characteristic of agricultural expansion at the forest frontier.*
 
-![Chart 3 - Biomass vs CO2e](outputs/figures/chart3_biomass_co2e_scatter.png)
+![Chart 3 - Biomass vs CO2e](figures/chart3_biomass_co2e_scatter.png)
 *Chart 3: Relationship between mean AGBD (Mg/ha) and CO2e loss per patch, with point size proportional to patch area. The scatter demonstrates the IPCC Tier 1 calculation chain working correctly: CO2e scales with both biomass density and patch area. Patches with AGBD below 5 Mg/ha are excluded as they fall in GEDI orbital track gaps and have no reliable biomass estimate.*
 
-![Chart 4 - Cumulative CO2e](outputs/figures/chart4_cumulative_co2e.png)
+![Chart 4 - Cumulative CO2e](figures/chart4_cumulative_co2e.png)
 *Chart 4: Cumulative CO2e contribution ranked by patch size, largest first. The steep initial curve shows that a very small proportion of large patches accounts for the majority of emissions: 6% of patches in 2020-2022 and 5% in 2022-2023 account for 80% of total CO2e loss. This is directly relevant to carbon project prioritisation: protection effort concentrated on a small number of large clearings would capture the majority of the emissions signal.*
 
-![Chart 5 - Index Time Series](outputs/figures/chart5_index_time_series.png)
+![Chart 5 - Index Time Series](figures/chart5_index_time_series.png)
 *Chart 5: Mean spectral index values across the three epochs. All indices show decline from 2020 to 2022, consistent with forest loss and degradation during this period. The partial stabilisation between 2022 and 2023 aligns with the reduced deforestation rate detected in that transition. NDMI (canopy moisture) shows the most consistent decline, suggesting ongoing canopy drying or thinning beyond what structural indices alone capture.*
 
 ---
