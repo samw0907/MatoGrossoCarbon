@@ -1,0 +1,26 @@
+# docker-compose.yml
+
+services:
+  pipeline:
+    build: .
+    environment:
+      # AWS credentials
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-eu-north-1}
+      # GEE service account
+      - GOOGLE_APPLICATION_CREDENTIALS=/run/secrets/gee_key
+    volumes:
+      # mount GEE service account key at runtime - never baked into image
+      - ./config/gee-service-account.json:/run/secrets/gee_key:ro
+      # mount raw_data for PRODES shapefile access
+      - ./raw_data:/app/raw_data:ro
+      # mount outputs for local figure and report cache
+      - ./outputs:/app/outputs
+    command: ["python3", "scripts/run_pipeline.py"]
+
+  test:
+    build: .
+    environment:
+      - PYTHONPATH=/app
+    command: ["python3", "-m", "pytest", "tests/unit/", "-v"]
