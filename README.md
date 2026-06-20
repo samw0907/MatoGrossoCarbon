@@ -312,6 +312,37 @@ python scripts/generate_charts.py
 ```
 
 ---
+### Running with Docker
+
+Build the image:
+```bash
+docker build -t mato-grosso-carbon .
+```
+
+Run config validation (confirms GDAL and all dependencies are installed):
+```bash
+docker run --rm \
+  -v ./config/gee-service-account.json:/app/config/gee-service-account.json:ro \
+  mato-grosso-carbon
+```
+
+Run the carbon flow:
+```bash
+docker run --rm \
+  -v ./config/gee-service-account.json:/app/config/gee-service-account.json:ro \
+  -v ./raw_data:/app/raw_data:ro \
+  -v ./outputs:/app/outputs \
+  -e AWS_ACCESS_KEY_ID=your_key \
+  -e AWS_SECRET_ACCESS_KEY=your_secret \
+  -e AWS_DEFAULT_REGION=eu-north-1 \
+  mato-grosso-carbon \
+  python3 scripts/run_carbon_flow.py
+```
+
+Run unit tests:
+```bash
+docker run --rm mato-grosso-carbon python3 -m pytest tests/unit/ -v
+```
 
 ## Folder Structure
 
