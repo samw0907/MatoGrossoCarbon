@@ -172,9 +172,11 @@ All parameters live in `config/pipeline_config.yaml`. The code contains no hardc
 | F1 vs PRODES | 0.392 | 0.418 |
 | Patches accounting for 80% of CO2e | 6% | 5% |
 
-Forest cover loss 2020-2023: approximately 124,000 ha, representing 4.5% of the 2020 forest baseline. The declining deforestation rate between the two transitions (39,910 ha vs 16,336 ha) is consistent with the national PRODES trend showing reduced Amazon deforestation following Brazil's change in environmental governance after 2022.
+Forest cover loss 2020-2023: approximately 124,000 ha, representing 4.5% of the 2020 forest baseline. The deforestation rate declined markedly between the two transitions, from 39,910 ha in 2020-2022 to 16,336 ha in 2022-2023, consistent with the national PRODES trend of declining Amazon deforestation rates during this period.
 
-The cumulative CO2e finding is particularly relevant for carbon project prioritisation: just 5-6% of deforestation patches account for 80% of total carbon loss. This is consistent with a heavily right-skewed patch size distribution where the majority of clearings are small (median 3.1-3.4 ha) but a small number of large clearings dominate the emissions signal.
+The patch size distribution is heavily right-skewed in both transitions. The majority of clearings are small, with a median of 3.1-3.4 ha just above the 1 ha minimum mapping unit, while a small number of large clearings dominate the emissions signal. Notably, just 5-6% of patches by count account for 80% of total CO2e loss. This concentration of emissions in a small number of large clearings is directly relevant to carbon project prioritisation: targeted protection of the largest patches would capture the majority of the carbon signal.
+
+All five spectral indices show consistent decline from 2020 to 2022, reflecting forest loss and canopy degradation, with partial stabilisation between 2022 and 2023 aligned with the reduced deforestation rate. NDMI shows the most sustained decline across the full period, indicating ongoing canopy moisture loss beyond what structural indices alone capture.
 
 ---
 
