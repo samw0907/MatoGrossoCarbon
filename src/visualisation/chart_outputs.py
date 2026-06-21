@@ -412,7 +412,8 @@ def chart5_index_time_series(run_id: str, output_dir: str) -> str:
     ax.set_xticks(epoch_nums)
     ax.set_xticklabels(epochs, color=TEXT_COLOR)
     ax.legend(facecolor="#1a1a1a", labelcolor=TEXT_COLOR, fontsize=9,
-              loc="upper right")
+              loc="upper left", bbox_to_anchor=(1.01, 1), borderaxespad=0)
+    plt.tight_layout(rect=[0, 0, 0.88, 1])
 
     plt.tight_layout()
     out_path = f"{output_dir}/chart5_index_time_series.png"
