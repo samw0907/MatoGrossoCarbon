@@ -169,7 +169,7 @@ All parameters live in `config/pipeline_config.yaml`. The code contains no hardc
 | Patch count | 1,628 | 831 |
 | Median patch size | 3.4 ha | 3.1 ha |
 | dNBR threshold (F1-optimal) | -0.250 | -0.250 |
-| F1 vs PRODES | 0.392 | 0.418 |
+| F1 vs PRODES (dNBR calibration) | 0.392 | 0.418 |
 | Patches accounting for 80% of CO2e | 6% | 5% |
 
 Forest cover loss 2020-2023: approximately 124,000 ha, representing 4.5% of the 2020 forest baseline. The deforestation rate declined markedly between the two transitions, from 39,910 ha in 2020-2022 to 16,336 ha in 2022-2023, consistent with the national PRODES trend of declining Amazon deforestation rates during this period.
@@ -195,7 +195,7 @@ All five spectral indices show consistent decline from 2020 to 2022, reflecting 
 *Figure 5: GEDI L4B v2.1 aboveground biomass density across the study area. Brighter green indicates higher biomass. The diagonal track pattern is an inherent characteristic of GEDI's lidar sampling geometry - the instrument fires laser pulses along the ISS orbital track rather than providing continuous wall-to-wall coverage. This is not a data quality issue. The biomass values used in carbon calculations are extracted from this surface.*
 
 ![Figure 6 - Validation](figures/figure6_validation.png)
-*Figure 6: Pixel-level comparison of our detected deforestation (MapBiomas transitions) against PRODES. Green = true positive (both systems agree deforestation occurred), red = false positive (we detected it, PRODES does not record it in this window), orange = false negative (PRODES records it, we did not detect it). F1 scores of 0.34-0.34 reflect genuine methodological differences rather than errors - see Validation and Limitations.*
+*Figure 6: Pixel-level comparison of detected deforestation (MapBiomas forest transitions) against PRODES. Green = true positive (both systems agree deforestation occurred), red = false positive (we detected it, PRODES does not record it in this window), orange = false negative (PRODES records it, we did not detect it). Precision, recall and F1 scores are calculated at pixel level from MapBiomas transitions vs PRODES rasters - see Validation and Limitations for a discussion of the methodological differences between the two systems.*
 
 ---
 
@@ -220,9 +220,11 @@ All five spectral indices show consistent decline from 2020 to 2022, reflecting 
 
 ## Validation and Limitations
 
-### PRODES validation (F1: 0.39-0.42)
+### PRODES validation
 
-Our change detection achieves F1 scores of 0.39-0.42 against PRODES. This is a reasonable result given genuine methodological differences between the two systems:
+Our dNBR threshold calibration achieves F1 scores of 0.39-0.42 against PRODES. A separate pixel-level comparison of MapBiomas forest transitions against PRODES (Figure 6) shows lower F1 scores of 0.30-0.34, reflecting the stricter nature of pixel-level agreement vs patch-level threshold calibration, as well as the methodological differences between the two systems described below.
+
+These results are reasonable given genuine methodological differences between the two systems:
 
 - **Calendar mismatch**: PRODES uses an August-July annual cycle to capture the full dry season. Our Sentinel-2 composites use June-August. A clearing that occurs in September will appear in PRODES for that year but not in our next composite window until the following year.
 - **Minimum mapping unit**: PRODES uses a 6.25 ha minimum mapping unit. Our pipeline uses 1 ha, consistent with VCS VM0015. Many small patches we detect are below the PRODES detection threshold and will appear as false positives against PRODES even if the deforestation is real.
