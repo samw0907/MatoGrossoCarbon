@@ -442,7 +442,7 @@ def figure6_validation(run_id: str, output_dir: str) -> str:
 
 def generate_all_figures(run_id: str, vectors_local_dir: str) -> list:
     """Generate all six figures and return list of output paths."""
-    output_dir = "outputs/figures"
+    output_dir = "figures"
     os.makedirs(output_dir, exist_ok=True)
 
     paths = []

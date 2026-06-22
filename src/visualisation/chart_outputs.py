@@ -430,7 +430,7 @@ def generate_all_charts(
     reports_local_dir: str
 ) -> list:
     """Generate all five charts and return list of output paths."""
-    output_dir = "outputs/figures"
+    output_dir = "figures"
     os.makedirs(output_dir, exist_ok=True)
 
     paths = []
